@@ -66,6 +66,9 @@ namespace RunCat
         private Timer animateTimer = new Timer();
         private Timer cpuTimer = new Timer();
 
+        // neko: every core's data
+        private PerformanceCounter[] corePCounters;
+        private string core_i_prerelease;
 
         public RunCatApplicationContext()
         {
@@ -79,6 +82,14 @@ namespace RunCat
 
             cpuUsage = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
             _ = cpuUsage.NextValue(); // discards first return value
+
+            // every core counter
+            corePCounters = new PerformanceCounter[System.Environment.ProcessorCount];
+            for (int i = 0; i < corePCounters.Length; i++)
+            {
+                corePCounters[i] = new PerformanceCounter("Processor", "% Processor Time", i.ToString());
+                corePCounters[i].NextValue(); // get % Processor Time
+            }
 
             runnerMenu = new ToolStripMenuItem("Runner", null, new ToolStripMenuItem[]
             {
@@ -150,7 +161,7 @@ namespace RunCat
                 startupMenu,
                 runnerSpeedLimit,
                 new ToolStripSeparator(),
-                new ToolStripMenuItem($"{Application.ProductName} v{Application.ProductVersion}")
+                new ToolStripMenuItem($"{Application.ProductName} v{Application.ProductVersion} nekodev")
                 {
                     Enabled = false
                 },
@@ -367,8 +378,28 @@ namespace RunCat
         private void CPUTick()
         {
             interval = Math.Min(100, cpuUsage.NextValue()); // Sometimes got over 100% so it should be limited to 100%
-            notifyIcon.Text = $"CPU: {interval:f1}%";
+
+
+            // notifyIcon.Text = $"CPU: {interval:f1}%\n";
+            core_i_prerelease = "";
             interval = 200.0f / (float)Math.Max(1.0f, Math.Min(20.0f, interval / 5.0f));
+
+            for(int i = 0; i < corePCounters.Length; i++)
+            {
+                core_i_prerelease += $"{corePCounters[i].NextValue():f1}";
+                if (i < corePCounters.Length - 1)
+                {
+                    core_i_prerelease += " ";
+                }
+            }
+
+            if(core_i_prerelease.Length >= 128)
+            {
+                core_i_prerelease = core_i_prerelease.Substring(0, 126);
+                core_i_prerelease += "*";
+            }
+            notifyIcon.Text = core_i_prerelease;
+
             _ = interval;
             CPUTickSpeed();
         }
